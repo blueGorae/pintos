@@ -1,6 +1,8 @@
 #include "vm/page.h"
 #include "userprog/process.h"
 
+static bool install_page (void *upage, void *kpage, bool writable);
+ 
 static unsigned page_hash_func (const struct hash_elem *e, void *aux UNUSED)
 {
   struct s_pte *spte = hash_entry(e, struct s_pte, elem);
@@ -34,11 +36,7 @@ struct s_pte* s_pte_alloc(struct cur_file_info * cur_file_info, void * vaddr){
 static void s_page_action_func (struct hash_elem *e, void *aux UNUSED)
 {
   struct s_pte *spte = hash_entry(e, struct s_pte, elem);
-  if (is_loaded(spte->vaddr))
-  {
-      palloc_free_page(spte->vaddr);
-      free(spte->cur_file_info);
-  }
+  free(spte->cur_file_info);
   free(spte);
 }
 
@@ -103,4 +101,15 @@ bool is_loaded(void * page){
         return false;
     
     return true;
+}
+
+static bool
+install_page (void *upage, void *kpage, bool writable)
+{
+  struct thread *t = thread_current ();
+
+  /* Verify that there's not already a page at that virtual
+     address, then map our page there. */
+  return (pagedir_get_page (t->pagedir, upage) == NULL
+          && pagedir_set_page (t->pagedir, upage, kpage, writable));
 }

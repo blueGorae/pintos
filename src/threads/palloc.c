@@ -10,17 +10,15 @@
 #include "threads/loader.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-
+#include "vm/frame.h"
 /* Page allocator.  Hands out memory in page-size (or
    page-multiple) chunks.  See malloc.h for an allocator that
    hands out smaller chunks.
-
    System memory is divided into two "pools" called the kernel
    and user pools.  The user pool is for user (virtual) memory
    pages, the kernel pool for everything else.  The idea here is
    that the kernel needs to have memory for its own operations
    even if user processes are swapping like mad.
-
    By default, half of system RAM is given to the kernel pool and
    half to the user pool.  That should be huge overkill for the
    kernel pool, but that's just fine for demonstration purposes. */
@@ -90,6 +88,10 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     {
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
+      
+      /* Add this page to frame table */
+      if (flags & PAL_USER)
+        fte_alloc(pages);
     }
   else 
     {
@@ -126,8 +128,10 @@ palloc_free_multiple (void *pages, size_t page_cnt)
 
   if (page_from_pool (&kernel_pool, pages))
     pool = &kernel_pool;
-  else if (page_from_pool (&user_pool, pages))
+  else if (page_from_pool (&user_pool, pages)){
     pool = &user_pool;
+    fte_free(pages);
+  }
   else
     NOT_REACHED ();
 
