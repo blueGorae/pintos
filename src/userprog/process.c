@@ -483,25 +483,17 @@ load_segment (struct file *file, off_t ofs, uint8_t *upage,
       size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
       size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
+      struct cur_file_info * cur_file_info = (struct cur_file_info *) malloc(sizeof(struct cur_file_info));
+      cur_file_info-> file = file;
+      cur_file_info-> offset = ofs;
+      cur_file_info-> page_read_bytes = page_read_bytes;
+      cur_file_info-> page_zero_bytes = page_zero_bytes;
+      cur_file_info-> writable = writable;
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+      /* Lazy Loading */
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
-        {
-          palloc_free_page (kpage);
-          return false; 
-        }
+      s_pte_alloc(cur_file_info, upage);
+
 
       /* Advance. */
       read_bytes -= page_read_bytes;

@@ -90,11 +90,16 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
         memset (pages, 0, PGSIZE * page_cnt);
       
       /* Add this page to frame table */
-      if (flags & PAL_USER)
+      if (flags & PAL_USER){
         fte_alloc(pages);
+      }
     }
   else 
     {
+      if(flags & PAL_USER){
+        frame_evict();
+        return palloc_get_multiple(flags, page_cnt);
+      }
       if (flags & PAL_ASSERT)
         PANIC ("palloc_get: out of pages");
     }
