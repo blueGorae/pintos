@@ -30,7 +30,9 @@ static void (*syscall_table[20])(struct intr_frame*) = {
   sys_write,
   sys_seek,
   sys_tell,
-  sys_close
+  sys_close,
+  sys_mmap,
+  sys_munmap
 }; // syscall jmp table
 
 /* Reads a byte at user virtual address UADDR.
@@ -419,4 +421,72 @@ void sys_close (struct intr_frame * f) {
       return;
     }
   }
+}
+
+int sys_mmap(int fd, void* vaddr)
+{
+  struct file* base_file = get_file_from_fd(fd);
+  if(!base_file || !is_user_vaddr(vaddr)) return ERROR;
+
+  struct file* new_file = file_reopen(base_file);
+  if(!new_file || file_length(base_file) == 0) return ERROR;
+  thread_current()->md++;
+  
+  uint32_t count = file_length(new_file);
+  int32_t ofscount = 0;
+  while(count > 0)
+  {
+    uint32_t read_bytes;
+    if(count < PGSIZE) read_bytes = count;
+    else read_bytes = PGSIZE;
+    uint32_t zero_bytes = PGSIZE - read_bytes;
+    
+    bool result;
+    struct s_pte* entry = malloc(sizeof(struct s_pte));
+    if(!entry) result = false;
+    else
+    {
+      //set up s_pte
+      struct cur_file_info* cur_file_info = (struct cur_file_info *) malloc(sizeof(struct cur_file_info));
+      cur_file_info->file = new_file;
+      cur_file_info->offset = ofscount;
+      cur_file_info->page_read_bytes = read_bytes;
+      cur_file_info->page_zero_bytes = zero_bytes;
+
+      entry->cur_file_info = cur_file_info;
+      entry->vaddr = vaddr;
+      entry->writable = true;
+      
+      //save mm file into thread
+      struct mm_file* mmf = malloc(sizeof(struct mm_file));
+      if(!mmf)
+      {
+        free(entry);
+        result = false;	
+      }
+      else
+      {
+        mmf->s_pte = entry;
+        mmf->md = thread_current()->md;
+        list_push_back(&thread_current()->mm_files, &mm->elem);
+      }    
+
+      //inset into hash
+      hash_insert(&thread_current()->s_pte, &entry->elem)
+      
+      if(result == false)
+      {
+        sys_munmap(thread_current()->md);
+	return ERROR;
+      }
+
+      //to next 
+      count -= read_bytes;
+      ofscount += read_bytes;
+      vaddr += PGSIZE;
+    } 
+    
+  }
+
+  return thread_current()->md;
 }

@@ -19,7 +19,6 @@ struct cur_file_info {
     off_t offset;
     uint32_t page_read_bytes;
     uint32_t page_zero_bytes;
-    bool writable
 };
 
 struct s_pte{
@@ -27,6 +26,7 @@ struct s_pte{
 
     struct cur_file_info * cur_file_info;
 
+    bool writable
     size_t swap_index;
     struct hash_elem elem;
 
@@ -44,5 +44,6 @@ bool load_page(void * vaddr);
 
 bool is_loaded(void * page);
 
+bool stack_growth(void* vaddr);
 
 #endif /* vm/page.h */

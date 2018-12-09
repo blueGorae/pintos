@@ -1,6 +1,8 @@
 #include "vm/page.h"
 #include "userprog/process.h"
 
+#define STACK_MAX (1 << 23) //256kb
+
 static bool install_page (void *upage, void *kpage, bool writable);
  
 static unsigned page_hash_func (const struct hash_elem *e, void *aux UNUSED)
@@ -86,7 +88,7 @@ bool load_page(void * vaddr){
     memset (frame + spte->cur_file_info->page_read_bytes, 0, spte->cur_file_info-> page_zero_bytes);
 
     /* Add the page to the process's address space. */
-    if (!install_page (spte-> vaddr, frame, spte->cur_file_info->writable)) 
+    if (!install_page (spte-> vaddr, frame, spte->writable)) 
     {
         palloc_free_page (frame);
         return false; 
@@ -112,4 +114,42 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+bool stack_growth(void* vaddr)
+{
+  //check new size of stack
+  size_t new_size = PHYS_BASE = pg_round_down(vaddr);
+  if(new_size > STACK_MAX) return false;
+
+  //make new page entry
+  struct s_pte* entry = malloc(sizeof(struct s_pte));
+  if(entry)
+  {
+    entry->vaddr = pg_round_down(vaddr);
+    entry->writable = true;
+  }
+  else return false;
+
+  //make new frame
+  uint8_t* frame = fte_alloc(PAL_USER, entry);
+  if(frame == NULL)
+  {
+    free(entry->cur_file_info);
+    free(entry);
+    return false;
+  }
+  
+  //install page
+  if(!install_page(entry->vaddr, frame, entry->writable))
+  {
+    free(entry->cur_file_info);
+    free(entry);
+    fte_free(frame);
+    return false;
+  }
+
+  //insert page into page table
+  return (!hash_insert((&thread_current()->s_page_table), &entry->elem));
+
 }
