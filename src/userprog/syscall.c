@@ -504,10 +504,20 @@ void sys_munmap(int md)
     struct list_elem* next = list_next(e);
 
     struct mm_file* mmf = list_entry(e, struct mm_file, elem);
-  
-  
+    if(mmf->md == md)
+    {
+      //free page
+      palloc_free_page(pagedir_get_page(cur->pagedir, mmf->s_pte->vaddr));
+      pagedir_clear_page(cur->pagedir, mmf->s_pte->vaddr);
+
+      //remove from lists
+      hash_delete(&cur->s_page_table, &mmf->s_pte->elem);
+      list_remove(&mmf->elem);
+
+      file_close(mmf->s_pte->cur_file_info->file);
+      free(mmf->s_pte);
+      free(mmf);
+    } 
+    e = next;
   }
-
-
-
 }

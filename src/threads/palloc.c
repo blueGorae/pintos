@@ -126,6 +126,7 @@ palloc_free_multiple (void *pages, size_t page_cnt)
     pool = &kernel_pool;
   else if (page_from_pool (&user_pool, pages)){
     pool = &user_pool;
+    fte_free(pages);
   }
   else
     NOT_REACHED ();
