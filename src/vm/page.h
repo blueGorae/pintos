@@ -18,7 +18,8 @@ struct cur_file_info {
     struct file * file;
     off_t offset;
     uint32_t page_read_bytes;
-    uint32_t page_zero_bytes;
+    uint32_t page_zero_bytes; 
+    bool writable;
 };
 
 struct s_pte{
@@ -26,7 +27,6 @@ struct s_pte{
 
     struct cur_file_info * cur_file_info;
 
-    bool writable
     size_t swap_index;
     struct hash_elem elem;
 

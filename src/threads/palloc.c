@@ -88,18 +88,9 @@ palloc_get_multiple (enum palloc_flags flags, size_t page_cnt)
     {
       if (flags & PAL_ZERO)
         memset (pages, 0, PGSIZE * page_cnt);
-      
-      /* Add this page to frame table */
-      if (flags & PAL_USER){
-        fte_alloc(pages);
-      }
     }
   else 
     {
-      if(flags & PAL_USER){
-        frame_evict();
-        return palloc_get_multiple(flags, page_cnt);
-      }
       if (flags & PAL_ASSERT)
         PANIC ("palloc_get: out of pages");
     }
@@ -135,7 +126,6 @@ palloc_free_multiple (void *pages, size_t page_cnt)
     pool = &kernel_pool;
   else if (page_from_pool (&user_pool, pages)){
     pool = &user_pool;
-    fte_free(pages);
   }
   else
     NOT_REACHED ();

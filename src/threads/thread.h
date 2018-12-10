@@ -107,7 +107,8 @@ struct thread
     struct file *current_file;
     struct hash s_page_table;
 
-    struct list mmfiles;
+    struct list mm_files;
+    int md;
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };
@@ -117,7 +118,7 @@ struct mm_file
   struct s_pte *s_pte;
   int md;
   struct list_elem elem;
-}
+};
 
 /* If false (default), use round-robin scheduler.
    If true, use multi-level feedback queue scheduler.

@@ -8,6 +8,8 @@
 #include "userprog/process.h"
 #include "threads/malloc.h"
 #include "threads/vaddr.h"
+#include "vm/page.h"
+#include "vm/frame.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -426,10 +428,10 @@ void sys_close (struct intr_frame * f) {
 int sys_mmap(int fd, void* vaddr)
 {
   struct file* base_file = get_file_from_fd(fd);
-  if(!base_file || !is_user_vaddr(vaddr)) return ERROR;
+  if(!base_file || !is_user_vaddr(vaddr)) return -1;
 
   struct file* new_file = file_reopen(base_file);
-  if(!new_file || file_length(base_file) == 0) return ERROR;
+  if(!new_file || file_length(base_file) == 0) return -1;
   thread_current()->md++;
   
   uint32_t count = file_length(new_file);
@@ -442,7 +444,7 @@ int sys_mmap(int fd, void* vaddr)
     uint32_t zero_bytes = PGSIZE - read_bytes;
     
     bool result;
-    struct s_pte* entry = malloc(sizeof(struct s_pte));
+    struct s_pte* entry = (struct s_pte *) malloc(sizeof(struct s_pte));
     if(!entry) result = false;
     else
     {
@@ -452,10 +454,10 @@ int sys_mmap(int fd, void* vaddr)
       cur_file_info->offset = ofscount;
       cur_file_info->page_read_bytes = read_bytes;
       cur_file_info->page_zero_bytes = zero_bytes;
-
+      cur_file_info->writable = true;
       entry->cur_file_info = cur_file_info;
       entry->vaddr = vaddr;
-      entry->writable = true;
+   
       
       //save mm file into thread
       struct mm_file* mmf = malloc(sizeof(struct mm_file));
@@ -468,16 +470,16 @@ int sys_mmap(int fd, void* vaddr)
       {
         mmf->s_pte = entry;
         mmf->md = thread_current()->md;
-        list_push_back(&thread_current()->mm_files, &mm->elem);
+        list_push_back(&thread_current()->mm_files, &mmf->elem);
       }    
 
       //inset into hash
-      hash_insert(&thread_current()->s_pte, &entry->elem)
+      hash_insert(&thread_current()->s_page_table, &entry->elem);
       
       if(result == false)
       {
         sys_munmap(thread_current()->md);
-	return ERROR;
+	return -1;
       }
 
       //to next 
@@ -489,4 +491,23 @@ int sys_mmap(int fd, void* vaddr)
   }
 
   return thread_current()->md;
+}
+
+
+void sys_munmap(int md)
+{
+  struct thread* cur = thread_current();
+
+  struct list_elem* e = list_begin(&cur->mm_files);
+  while(e!=list_end(&cur->mm_files))
+  {
+    struct list_elem* next = list_next(e);
+
+    struct mm_file* mmf = list_entry(e, struct mm_file, elem);
+  
+  
+  }
+
+
+
 }

@@ -37,5 +37,7 @@ void sys_write (struct intr_frame * f);
 void sys_seek (struct intr_frame * f);
 void sys_tell (struct intr_frame * f);
 void sys_close (struct intr_frame * f);
+int sys_mmap (int fd, void* vaddr);
+void sys_munmap (int md);
 
 #endif /* userprog/syscall.h */

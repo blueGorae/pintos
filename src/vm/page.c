@@ -88,7 +88,7 @@ bool load_page(void * vaddr){
     memset (frame + spte->cur_file_info->page_read_bytes, 0, spte->cur_file_info-> page_zero_bytes);
 
     /* Add the page to the process's address space. */
-    if (!install_page (spte-> vaddr, frame, spte->writable)) 
+    if (!install_page (spte-> vaddr, frame, spte->cur_file_info->writable)) 
     {
         palloc_free_page (frame);
         return false; 
@@ -119,15 +119,17 @@ install_page (void *upage, void *kpage, bool writable)
 bool stack_growth(void* vaddr)
 {
   //check new size of stack
-  size_t new_size = PHYS_BASE = pg_round_down(vaddr);
+  size_t new_size = PHYS_BASE - pg_round_down(vaddr);
   if(new_size > STACK_MAX) return false;
 
   //make new page entry
   struct s_pte* entry = malloc(sizeof(struct s_pte));
   if(entry)
   {
+    struct cur_file_info* cur_file_info = malloc(sizeof(struct cur_file_info));
+    entry->cur_file_info = cur_file_info;
     entry->vaddr = pg_round_down(vaddr);
-    entry->writable = true;
+    entry->cur_file_info->writable = true;
   }
   else return false;
 
@@ -141,7 +143,7 @@ bool stack_growth(void* vaddr)
   }
   
   //install page
-  if(!install_page(entry->vaddr, frame, entry->writable))
+  if(!install_page(entry->vaddr, frame, entry->cur_file_info->writable))
   {
     free(entry->cur_file_info);
     free(entry);

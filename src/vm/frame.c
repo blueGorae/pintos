@@ -4,15 +4,36 @@ void frame_table_init(){
     list_init(&frame_table);
 }
 
-struct fte* fte_alloc(void * page){
-    
-    struct fte* fte = (struct fte *)malloc(sizeof(struct fte));
-    fte -> frame = page;
-    fte -> thread = thread_current();
-    fte -> allocatable = true;
-    list_push_back(&frame_table, &fte->elem);
-    return fte;
+void* fte_alloc(enum palloc_flags flag, struct s_pte* entry){
+    if(flag != PAL_USER) return NULL;
+    void* frame = palloc_get_page(flag);
+    if(frame)
+    {
+      struct fte* fte = malloc(sizeof(struct fte));
+      fte->frame = frame;
+      fte->s_pte = entry;
+      fte->thread = thread_current();
+      fte->allocatable= true;
+      list_push_back(&frame_table, &fte->elem);
+    }
+    else
+    {
+      while(true)
+      {
+	 frame = frame_evict(flag);
+	 if(frame) break;
+      }
+      if(!frame) PANIC("frame full");
+      struct fte* fte = malloc(sizeof(struct fte));
+      fte->frame = frame;
+      fte->s_pte = entry;
+      fte->thread = thread_current();
+      fte->allocatable = true;
+      list_push_back(&frame_table, &fte->elem);
+    }
+    return frame;
 }
+
 void fte_free(void * frame){
 
     struct fte * fte = fte_search_by_frame(frame);
@@ -31,7 +52,7 @@ struct fte* fte_search_by_frame(void * frame){
     return NULL;
 }
 
-void frame_evict(){
+void* frame_evict(enum palloc_flags flag){
     //use clock algorithm
     //now FIFO
     
@@ -41,6 +62,10 @@ void frame_evict(){
 
     struct fte* fte = list_entry(e, struct fte, elem);
     void * frame = fte-> frame;
-    
+    list_remove(&fte->elem);
+    pagedir_clear_page(fte->thread->pagedir, fte->s_pte->vaddr);
     palloc_free_page(frame);
+    free(fte);
+
+    return palloc_get_page(flag);
 }
